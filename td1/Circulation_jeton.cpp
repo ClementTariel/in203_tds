@@ -2,6 +2,7 @@
 # include <cstdlib>
 # include <mpi.h>
 
+
 int main( int nargs, char* argv[] )
 {
 	// On initialise le contexte MPI qui va s'occuper :

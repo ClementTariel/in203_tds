@@ -30,14 +30,44 @@ int main( int nargs, char* argv[] )
 	// l'utilisateur )
 	int rank;
 	MPI_Comm_rank(globComm, &rank);
-	// Création d'un fichier pour ma propre sortie en écriture :
-	std::stringstream fileName;
-	fileName << "Output" << std::setfill('0') << std::setw(5) << rank << ".txt";
-	std::ofstream output( fileName.str().c_str() );
 
+	MPI_Status status ;
+
+	int token;
+	if (rank == 0){
+		token = nbp;
+	}
+	int nb_nodes_with_token = 1;
+
+	while(2*nb_nodes_with_token<nbp){
+		if (rank<nb_nodes_with_token){
+			MPI_Send (&token , 1, MPI_INT , rank + nb_nodes_with_token, 0, MPI_COMM_WORLD );
+		}
+		if (nb_nodes_with_token<=rank && rank<2*nb_nodes_with_token){
+			MPI_Recv (&token , 1, MPI_INT , rank-(nb_nodes_with_token), 0, MPI_COMM_WORLD ,& status );
+		}
+		nb_nodes_with_token *= 2;
+		
+	}
+	
+	if (rank + nb_nodes_with_token<nbp){
+		MPI_Send (&token , 1, MPI_INT , rank + nb_nodes_with_token, 0, MPI_COMM_WORLD );
+	}
+	if (nb_nodes_with_token <= rank){
+		MPI_Recv (&token , 1, MPI_INT , rank-(nb_nodes_with_token), 0, MPI_COMM_WORLD ,& status );
+	}
+	nb_nodes_with_token = nbp;
+	
+	std::cout << "Valeur du jeton : " << token << " ( je suis le processus n°" << rank << ".)\n";
+
+	// Création d'un fichier pour ma propre sortie en écriture :
+	//std::stringstream fileName;
+	//fileName << "Output" << std::setfill('0') << std::setw(5) << rank << ".txt";
+	//std::ofstream output( fileName.str().c_str() );
+	
 	// Rajout du programme ici...
 	
-	output.close();
+	//output.close();
 	// A la fin du programme, on doit synchroniser une dernière fois tous les processus
 	// afin qu'aucun processus ne se termine pendant que d'autres processus continue à
 	// tourner. Si on oublie cet instruction, on aura une plantage assuré des processus

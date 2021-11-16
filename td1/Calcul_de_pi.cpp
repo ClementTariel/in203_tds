@@ -9,7 +9,7 @@
 # include <mpi.h>
 
 // Attention , ne marche qu'en C++ 11 ou supérieur :
-double approximate_pi( unsigned long nbSamples ) 
+int approximate_pi( unsigned long nbSamples ) 
 {
     typedef std::chrono::high_resolution_clock myclock;
     myclock::time_point beginning = myclock::now();
@@ -26,7 +26,7 @@ double approximate_pi( unsigned long nbSamples )
         if ( x*x+y*y<=1 ) nbDarts ++;
     }
     // Number of nbDarts throwed in the unit disk
-    double ratio = double(nbDarts)/double(nbSamples);
+    double ratio = double(nbDarts)/*/double(nbSamples)*/;
     return 4*ratio;
 }
 
@@ -39,8 +39,7 @@ int main( int nargs, char* argv[] )
 	//       le communicateur COMM_WORLD
 	//    3. etc...
 	MPI_Init( &nargs, &argv );
-	// Pour des raisons de portabilité qui débordent largement du cadre
-	// de ce cours, on préfère toujours cloner le communicateur global
+	// Pour des raison préfère toujours cloner le communicateur global
 	// MPI_COMM_WORLD qui gère l'ensemble des processus lancés par MPI.
 	MPI_Comm globComm;
 	MPI_Comm_dup(MPI_COMM_WORLD, &globComm);
@@ -55,7 +54,45 @@ int main( int nargs, char* argv[] )
 	int rank;
 	MPI_Comm_rank(globComm, &rank);
 
-	
+	MPI_Status status ;
+
+	if (nargs != 2){
+		if (rank == 0){
+			printf("1 argument attendu, l'entree doit etre de la forme : \n\n");
+			printf("mpiexec --oversubscribe -n <nb processus> ./Calcul_de_pi.exe <nb point>\n\n");
+			printf("plus le nombre de points est grand plus l'approximation est precise\n");
+		}
+	}else{
+		if (rank == 0){
+			double approx = approximate_pi(atoi(argv[1])/nbp);
+			int n = atoi(argv[1])/nbp;
+			int n_plus_1 = (atoi(argv[1])/nbp)+1;
+			
+			for (int i=1; i< 1+(atoi(argv[1])%nbp); i++){
+				MPI_Send (&n_plus_1, 1, MPI_INT , i, 0, MPI_COMM_WORLD );
+			}
+			for (int i=1+(atoi(argv[1])%nbp); i< nbp; i++){
+				MPI_Send (&n, 1, MPI_INT , i, 0, MPI_COMM_WORLD );
+			}
+			for(int i=1 ; i<nbp; i++){
+				int myval;
+				MPI_Recv (&myval , 1, MPI_INT ,i, 0, MPI_COMM_WORLD ,& status );
+				approx += myval;
+				std::cout << "Valeur de lapprox  "<<i<<" : " << myval << " ( je suis le processus n°" << rank << ".)\n";
+			}
+			approx /= atoi(argv[1]);
+			std::cout << "Valeur de lapprox finale : " << approx << " ( je suis le processus n°" << rank << ".)\n";
+			
+
+		}else{
+			int n;
+			MPI_Recv (&n , 1, MPI_INT , 0, 0, MPI_COMM_WORLD ,& status );
+			int myval = approximate_pi(n);
+			//std::cout << "Valeur de l approx: " << myval << " ( je suis le processus n°" << rank << ".)\n";
+			MPI_Send (&myval , 1, MPI_INT , 0, 0, MPI_COMM_WORLD );
+		
+		}
+	}
 	
 	// Création d'un fichier pour ma propre sortie en écriture :
 	/*
