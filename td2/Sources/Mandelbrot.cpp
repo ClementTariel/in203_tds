@@ -181,6 +181,7 @@ int main(int nargs, char *argv[] )
     //savePicture("mandelbrot.tga", W, H, iters, maxIter);
     
     /*
+    // decoupage par lignes
     auto start = std::chrono::system_clock::now();
     auto iters_i = computeMandelbrotSetMultiThread(W, H, rank*H/nbp, (rank+1)*H/nbp, maxIter );
 	if (rank == 0){
@@ -218,6 +219,8 @@ int main(int nargs, char *argv[] )
 
     }
     */
+
+   //maitre-esclave
     if ( rank == 0 ) // rank == 0 => master
     {
         auto start = std::chrono::system_clock::now();
