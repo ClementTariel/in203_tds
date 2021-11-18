@@ -140,33 +140,7 @@ void savePicture( const std::string& filename, int W, int H, const std::vector<i
     ofs.close();
 }
 
-/** Construit et sauvegarde l'image finale **//*
-    void savePictureMultiThread( const std::string& filename, int W, int H, const std::vector<int>& nbIters0, int maxIter)
-    {
-        double scaleCol = 1./maxIter;//16777216
-        std::ofstream ofs( filename.c_str(), std::ios::out | std::ios::binary );
-        ofs << "P6\n"
-            << W << " " << H << "\n255\n";
-        for ( int i = 0; i < W * H/nbp; ++i ) {
-                double iter = scaleCol*nbIters0[i];
-                unsigned char r = (unsigned char)(256 - (unsigned (iter*256.) & 0xFF));
-                unsigned char b = (unsigned char)(256 - (unsigned (iter*65536) & 0xFF));
-                unsigned char g = (unsigned char)(256 - (unsigned( iter*16777216) & 0xFF));
-                ofs << r << g << b;
-            }
-        for ( int k = 1; k < nbp ; k++){
-            const std::vector<int>& nbIters;
-            MPI_Recv (&nbIters , 1, MPI_INT , k, 0, MPI_COMM_WORLD ,& status );
-            for ( int i = 0; i < W * (H*(k+1)/nbp  - H*k/nbp); ++i ) {
-                double iter = scaleCol*nbIters[i];
-                unsigned char r = (unsigned char)(256 - (unsigned (iter*256.) & 0xFF));
-                unsigned char b = (unsigned char)(256 - (unsigned (iter*65536) & 0xFF));
-                unsigned char g = (unsigned char)(256 - (unsigned( iter*16777216) & 0xFF));
-                ofs << r << g << b;
-            }
-        }
-        ofs.close();
-    }*/
+
 
 int main(int nargs, char *argv[] ) 
  { 
@@ -205,11 +179,11 @@ int main(int nargs, char *argv[] )
     const int maxIter = 8*65536;
     //auto iters = computeMandelbrotSet( W, H, maxIter );
     //savePicture("mandelbrot.tga", W, H, iters, maxIter);
-    std::cout << " Start computing ( je suis le processus n°" << rank << ".)\n";
-    std::cout << " Size : " << W *((rank+1)*H/nbp - (rank)*H/nbp) << " ( je suis le processus n°" << rank << ".)\n";
-	auto iters_i = computeMandelbrotSetMultiThread(W, H, rank*H/nbp, (rank+1)*H/nbp, maxIter );
-	std::cout << " finished ( je suis le processus n°" << rank << ".)\n";
-    if (rank == 0){
+    
+    /*
+    auto start = std::chrono::system_clock::now();
+    auto iters_i = computeMandelbrotSetMultiThread(W, H, rank*H/nbp, (rank+1)*H/nbp, maxIter );
+	if (rank == 0){
         double scaleCol = 1./maxIter;//16777216
         std::ofstream ofs( "mandelbrot.tga", std::ios::out | std::ios::binary );
         ofs << "P6\n"
@@ -234,10 +208,68 @@ int main(int nargs, char *argv[] )
             }
         }
         ofs.close();
+        auto end = std::chrono::system_clock::now();
+        std::chrono::duration<double> elapsed_seconds = end-start;
+        std::cout << "Temps calcul ensemble mandelbrot : " << elapsed_seconds.count() << std::endl;
     }else{
         //MPI_Send (&iters_i , 1, MPI_INT , 0, 0, MPI_COMM_WORLD );
         MPI_Send(&iters_i[0], W * (H*(rank+1)/nbp  - H*rank/nbp), MPI_INT, 0, 0, MPI_COMM_WORLD);
         std::cout << " Sent ( je suis le processus n°" << rank << ".)\n";
+
+    }
+    */
+    if ( rank == 0 ) // rank == 0 => master
+    {
+        auto start = std::chrono::system_clock::now();
+        std::vector<int> pixels(W*H);
+        int count_task = 0;
+        for ( int i = 1 ; i < nbp ; ++i ) {
+            MPI_Send(&count_task, 1, MPI_INT, i, 0, MPI_COMM_WORLD);
+            //send(&count_task , 1 , MPI_INT , i , . . . ) ;
+            count_task += 1;
+        }
+        while ( count_task < H) {
+            // s t a t u s c o n t i e n d r a l e numéro du proc ayant envoyé
+            // l e r é s u l t a t . . . : s t a t u s .MPI_SOURCE en MPI
+            std::vector<int> pixels_temp(W+1);
+            MPI_Recv(&pixels_temp[0] , W+1 , MPI_INT , MPI_ANY_SOURCE, 0, MPI_COMM_WORLD ,& status );
+            for (int k = 0; k < W ; k++){
+                pixels[W*pixels_temp[W]+k] = pixels_temp[k];
+            }
+            //recvv( r e s u l t , . . . , MPI_ANY_SOURCE, . . . , &s t a t u s ) ;
+            MPI_Send(&count_task, 1, MPI_INT, status.MPI_SOURCE, 0, MPI_COMM_WORLD);
+            //send(&count_task , 1 , MPI_INT , s t a t u s .MPI_SOURCE, . . . ) ;
+            count_task += 1 ;
+        }
+        // On e n v o i e un s i g n a l de t e r m i n a i s o n à t o u s l e s p r o c e s s u s
+        count_task = -1;
+        for ( int i = 1 ; i <nbp ; ++i ){
+            MPI_Send(&count_task, 1, MPI_INT, i, 0, MPI_COMM_WORLD);
+            //send(&count_task , 1 , MPI_INT , i , . . . ) ;
+        }
+        savePicture("mandelbrot.tga", W, H,  pixels, maxIter );
+        auto end = std::chrono::system_clock::now();
+        std::chrono::duration<double> elapsed_seconds = end-start;
+        std::cout << "Temps calcul ensemble mandelbrot : " << elapsed_seconds.count() << std::endl;
+    }else{
+        // Cas où j e s u i s un t r a v a i l l e u r
+        int num_task = 0;
+        // Tant que j e ne r e ç o i s pas l e n° de t e r m i n a i s o n
+        while (num_task != -1){
+            MPI_Recv(&num_task, 1 , MPI_INT , MPI_ANY_SOURCE, 0, MPI_COMM_WORLD ,& status );
+            //r e c v (&num_task , 1 , MPI_INT , 0 , . . . ) ;
+            if (num_task >= 0) {
+                // Exécute l a t â c h e c o r r e s p o n d a n t au numéro
+                int num_ligne = num_task;
+                std::vector<int> pixels(W+1);
+                computeMandelbrotSetRow(W, H, maxIter, num_ligne, pixels.data());
+                pixels[W] = num_task;
+                //e x e c u t e _ t a s k ( num_task , . . . ) ;
+                // Renvoie l e r é s u l t a t avec son numéro
+                MPI_Send(&pixels[0], W+1, MPI_INT, 0, 0, MPI_COMM_WORLD);
+                //send ( r e s u l t , . . . , 0 , . . . ) ;
+            }
+        }
 
     }
 
