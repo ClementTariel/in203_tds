@@ -9,7 +9,7 @@ class Matrix : public std::vector<double>
 {
 public:
     Matrix (int dim);
-    Matrix( int nrows, int ncols );
+    Matrix( int nrows, int ncols , int i_start, int j_start);
     Matrix( const Matrix& A ) = delete;
     Matrix( Matrix&& A ) = default;
     ~Matrix() = default;
@@ -18,10 +18,10 @@ public:
     Matrix& operator = ( Matrix&& A ) = default;
     
     double& operator () ( int i, int j ) {
-        return m_arr_coefs[i + j*m_nrows];
+        return m_arr_coefs[(i-m_i_start) + (j-m_j_start)*m_nrows];
     }
     double  operator () ( int i, int j ) const {
-        return m_arr_coefs[i + j*m_nrows];
+        return m_arr_coefs[(i-m_i_start) + (j-m_j_start)*m_nrows];
     }
     
     std::vector<double> operator * ( const std::vector<double>& u ) const;
@@ -41,7 +41,7 @@ public:
         return out;
     }
 private:
-    int m_nrows, m_ncols;
+    int m_nrows, m_ncols, m_i_start, m_j_start;
     std::vector<double> m_arr_coefs;
 };
 // ---------------------------------------------------------------------
@@ -76,7 +76,7 @@ Matrix::operator * ( const std::vector<double>& u ) const
 }
 
 // =====================================================================
-Matrix::Matrix (int dim) : m_nrows(dim), m_ncols(dim),
+Matrix::Matrix (int dim) : m_nrows(dim), m_ncols(dim),m_i_start(0),m_j_start(0),
                            m_arr_coefs(dim*dim)
 {
     for ( int i = 0; i < dim; ++ i ) {
@@ -86,12 +86,12 @@ Matrix::Matrix (int dim) : m_nrows(dim), m_ncols(dim),
     }
 }
 // ---------------------------------------------------------------------
-Matrix::Matrix( int nrows, int ncols ) : m_nrows(nrows), m_ncols(ncols),
-                                         m_arr_coefs(nrows*ncols)
+Matrix::Matrix( int nrows, int ncols, int i_start, int j_start ) : m_nrows(nrows), m_ncols(ncols),
+                                         m_i_start(i_start),m_j_start(j_start), m_arr_coefs(nrows*ncols)
 {
     int dim = (nrows > ncols ? nrows : ncols );
-    for ( int i = 0; i < nrows; ++ i ) {
-        for ( int j = 0; j < ncols; ++j ) {
+    for ( int i = i_start; i < i_start+nrows; ++ i ) {
+        for ( int j = j_start; j < j_start+ncols; ++j ) {
             (*this)(i,j) = (i+j)%dim;
         }
     }    
@@ -130,23 +130,23 @@ int main( int nargs, char* argv[] )
 	int rank;
 	MPI_Comm_rank(globComm, &rank);
 
-	MPI_Status status ;
+	//MPI_Status status ;
 
-    const int N = 120;
-    int Nloc = N/nbp;
+    const int N = 12;
+    const int Nloc = N/nbp;
     
     MPI_Op vSum;
     MPI_Op_create( (MPI_User_function *)mySum, 1, &vSum );
 
 /*
+    //test
     MPI_Datatype myVector;
     MPI_Type_vector(N, 1, 1, MPI_DOUBLE, &myVector);
     MPI_Type_commit(&myVector);
 */    
     
     
-    Matrix A(N);
-    //std::cout  << "A : " << A << std::endl;
+    
     std::vector<double> u( N );
     for ( int i = 0; i < N; ++i ) u[i] = i+1;
     //std::cout << " u : " << u << std::endl;
@@ -155,7 +155,10 @@ int main( int nargs, char* argv[] )
 
 
 /*
-//Produit parallèle matrice – vecteur par colonne
+    //Produit parallèle matrice – vecteur par colonne
+    Matrix A(N,Nloc, 0, Nloc*rank);
+    //std::cout  << "A : " << A << std::endl;
+
     std::vector<double> v_part( N );
     std::vector<double> v_final( N );
     for (int i = 0 ; i < N ; i++){
@@ -166,8 +169,12 @@ int main( int nargs, char* argv[] )
     }
     MPI_Allreduce (&v_part[0], &v_final[0], N, MPI_DOUBLE, vSum, MPI_COMM_WORLD);
     std::cout << "v = A*u : " << v_final << " ( je suis le processus n°" << rank << ".)\n";
-*/
-//Produit parallèle matrice – vecteur par ligne
+//*/
+///*
+    //Produit parallèle matrice – vecteur par ligne
+    Matrix A(Nloc,N, Nloc*rank, 0);
+    //std::cout  << "A : " << A << std::endl;
+
     std::vector<double> v_part( Nloc);
     std::vector<double> v_final( N );
     for (int i = 0 ; i < Nloc ; i++){
@@ -179,7 +186,7 @@ int main( int nargs, char* argv[] )
     MPI_Allgather (&v_part[0], Nloc, MPI_DOUBLE, &v_final[0], Nloc, MPI_DOUBLE, MPI_COMM_WORLD );
     //MPI_Allgather( sendarray, 100, MPI_INT, rbuf, 100, MPI_INT, comm); 
     std::cout << "v = A*u : " << v_final << " ( je suis le processus n°" << rank << ".)\n";
-
+//*/
 
     MPI_Finalize();
     return EXIT_SUCCESS;
