@@ -218,8 +218,8 @@ int main(int nargs, char *argv[] )
         std::cout << " Sent ( je suis le processus n°" << rank << ".)\n";
 
     }
-    */
-
+    //*/
+///*
    //maitre-esclave
     if ( rank == 0 ) // rank == 0 => master
     {
@@ -247,6 +247,11 @@ int main(int nargs, char *argv[] )
         // On e n v o i e un s i g n a l de t e r m i n a i s o n à t o u s l e s p r o c e s s u s
         count_task = -1;
         for ( int i = 1 ; i <nbp ; ++i ){
+            std::vector<int> pixels_temp(W+1);
+            MPI_Recv(&pixels_temp[0] , W+1 , MPI_INT , i, 0, MPI_COMM_WORLD ,& status );
+            for (int k = 0; k < W ; k++){
+                pixels[W*pixels_temp[W]+k] = pixels_temp[k];
+            }
             MPI_Send(&count_task, 1, MPI_INT, i, 0, MPI_COMM_WORLD);
             //send(&count_task , 1 , MPI_INT , i , . . . ) ;
         }
@@ -275,7 +280,7 @@ int main(int nargs, char *argv[] )
         }
 
     }
-
+//*/
 
 	// Création d'un fichier pour ma propre sortie en écriture :
 	//std::stringstream fileName;
