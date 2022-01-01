@@ -118,7 +118,7 @@ void simulation(bool affiche, int rank,int nbp)
 
     épidémie::ContexteGlobal contexte;
     // contexte.déplacement_maximal = 1; <= Si on veut moins de brassage
-    contexte.taux_population = 100'020;
+    contexte.taux_population = 3*100'020;
     //contexte.taux_population = 1'000;
     contexte.interactions.β = 60.;
     std::vector<épidémie::Individu> population;
@@ -212,7 +212,7 @@ void simulation(bool affiche, int rank,int nbp)
         }
         if(rank > 0){
 
-            if (rank == 1){
+            //if (rank == 1){
                 if (jours_écoulés%365 == 0)// Si le premier Octobre (début de l'année pour l'épidémie ;-) )
                 {
                     grippe = épidémie::Grippe(jours_écoulés/365);
@@ -238,11 +238,11 @@ void simulation(bool affiche, int rank,int nbp)
                 // Mise à jour des statistiques pour les cases de la grille :
                 màjStatistique(grille, population);
 
-                temp_grid = grille.getStatistiques();
-            }
+                //temp_grid = grille.getStatistiques();
+            //}
 
-            MPI_Bcast(temp_grid.data(), 3*largeur_grille*hauteur_grille, MPI_INT, 0, scomm);
-            grille.set_m_statistiques(temp_grid);
+            //MPI_Bcast(temp_grid.data(), 3*largeur_grille*hauteur_grille, MPI_INT, 0, scomm);
+            //grille.set_m_statistiques(temp_grid);
             
 
             // On parcout la population pour voir qui est contaminé et qui ne l'est pas, d'abord pour la grippe puis pour l'agent pathogène
@@ -278,7 +278,7 @@ void simulation(bool affiche, int rank,int nbp)
             std::chrono::duration<double> elapsed_seconds = middle-start;
             std::cout << "rank "<<rank<<". Temps calcul par etape (sans affichage) : " << elapsed_seconds.count() 
                   << std::endl;//*/
-            MPI_Gather(
+            /*MPI_Gather(
                 &population[(rank-1)*population.size()/(nbp-1)],
                 population.size()*sizeof(épidémie::Individu)/((nbp-1)),
                 MPI_CHAR,
@@ -286,14 +286,24 @@ void simulation(bool affiche, int rank,int nbp)
                 population.size()*sizeof(épidémie::Individu)/((nbp-1)),
                 MPI_CHAR,
                 0,
+                scomm);*/
+
+            MPI_Allgather(
+                &population[(rank-1)*population.size()/(nbp-1)],
+                population.size()*sizeof(épidémie::Individu)/((nbp-1)),
+                MPI_CHAR,
+                &population[0],
+                population.size()*sizeof(épidémie::Individu)/((nbp-1)),
+                MPI_CHAR,
                 scomm);
+
 
             int local_compteur_grippe = compteur_grippe;
             int local_compteur_agent = compteur_agent;
             int local_mouru = mouru;
-            MPI_Reduce(&local_compteur_grippe, &compteur_grippe, 1, MPI_INT, MPI_SUM, 0, scomm);
-            MPI_Reduce(&local_compteur_agent, &compteur_agent, 1, MPI_INT, MPI_SUM, 0, scomm);
-            MPI_Reduce(&local_mouru, &mouru, 1, MPI_INT, MPI_SUM, 0, scomm);
+            MPI_Allreduce(&local_compteur_grippe, &compteur_grippe, 1, MPI_INT, MPI_SUM, scomm);
+            MPI_Allreduce(&local_compteur_agent, &compteur_agent, 1, MPI_INT, MPI_SUM, scomm);
+            MPI_Allreduce(&local_mouru, &mouru, 1, MPI_INT, MPI_SUM, scomm);
 
 
             //envoi des donnees

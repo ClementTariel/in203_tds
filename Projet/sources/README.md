@@ -33,6 +33,12 @@ Temps de calcul par étape sans affichage | Temps d'affichage par étape | Total
 -----------------------------------------|-----------------------------|-------|---------
                  0.027                   |             0.020           | 0.047 |  1
 
+nombre d'individus | temps total par étape
+-------------------|-----------------------
+     2             |        0.093
+     3             |        0.14
+     4             |        0.19
+
 On constate qu'avec un programme séquentiel, à chaque étape, l'affichage prend plus de 40% du temps de calcul.
 
 ### Parallélisation affichage contre simulation (simulation_sync_affiche_mpi.cpp)
@@ -59,7 +65,7 @@ L'inconvenient est que l'on sollicite presque 2 fois moins le processus afficheu
 
 ### Parallélisation OpenMP (simulation_async_omp.cpp)
 
-On remarque que la génération aléatoire implémentée dans individu.cpp dépend de l'ordre dans lequel les individus sont traités. Or OpenMP ne permet pas de gérer l'ordre dans lequel les individus sont traités, on ne peut donc pas garantir un résultat identique à celui obtenu pour une exécution séquentielle.
+On remarque que la génération aléatoire implémentée dans individu.cpp appelle celle de grippe.hpp et donc dépend de l'ordre dans lequel les individus y font appel/sont traités. Or OpenMP ne permet pas de gérer l'ordre dans lequel les individus sont traités, on ne peut donc pas garantir un résultat identique à celui obtenu pour une exécution séquentielle.
 
 Pour un même nombre d'individu on a :
 
@@ -75,13 +81,31 @@ Pour un même nombre d'individu proportionellement au nombre de thread on a :
 OMP_NUM_THREADS | Temps de calcul par étape sans affichage | Temps d'affichage par étape | speedup
 ----------------|------------------------------------------|-----------------------------|---------
       1         |                  0.027                   |             0.055           |  1.74
-      2         |                  0.037                   |             0.11            |  1.27
-      3         |                  0.058                   |             0.18            |  0.81
-      4         |                  0.068                   |             0.23            |  0.69
+      2         |                  0.037                   |             0.11            |  2.51
+      3         |                  0.058                   |             0.18            |  2.41
+      4         |                  0.068                   |             0.23            |  2.79
 
 
 ### Parallélisation MPI de la simulation (simulation_async_mpi.cpp)
 
+Au lieu de paralléliser avec OpenMP, on découpe le processus calculeur en sous processus qui se répartissent les individus de la simulation grâce à la fonction MPI_Comm_split.
+Mais même avec MPI on a toujours le problème précédent (la génération aléatoire dépend de l'ordre des individus). 
+
+Pour un même nombre d'individu on a :
+
+processus calculeurs | Temps de calcul par étape sans affichage | Temps d'affichage par étape | speedup
+---------------------|------------------------------------------|-----------------------------|---------
+        1            |                  0.029                   |             0.059           |  1.62
+        2            |                  0.026                   |             0.052           |  1.81
+        3            |                  0.025                   |             0.058           |  1.88
+
+Pour un même nombre d'individu proportionellement au nombre de processus calculeurs on a :
+
+processus calculeurs | Temps de calcul par étape sans affichage | Temps d'affichage par étape | speedup
+---------------------|------------------------------------------|-----------------------------|---------
+        1            |                  0.029                   |             0.059           |  1.62
+        2            |                  0.051                   |             0.10            |  1.82
+        3            |                  0.071                   |             0.14            |  1.97
 
 ### bilan ?
 

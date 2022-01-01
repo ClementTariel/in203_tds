@@ -89,7 +89,7 @@ void simulation(bool affiche)
 
     épidémie::ContexteGlobal contexte;
     // contexte.déplacement_maximal = 1; <= Si on veut moins de brassage
-    // contexte.taux_population = 400'000;
+    contexte.taux_population = 100'000;
     //contexte.taux_population = 1'000;
     contexte.interactions.β = 60.;
     std::vector<épidémie::Individu> population;
