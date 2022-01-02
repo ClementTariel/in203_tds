@@ -33,11 +33,12 @@ Temps de calcul par étape sans affichage | Temps d'affichage par étape | Total
 -----------------------------------------|-----------------------------|-------|---------
                  0.027                   |             0.020           | 0.047 |  1
 
-nombre d'individus | temps total par étape
--------------------|-----------------------
-     2             |        0.093
-     3             |        0.14
-     4             |        0.19
+multiplication du nombre d'individus | temps total par étape
+-------------------------------------|-----------------------
+               1                     |        0.047
+               2                     |        0.093
+               3                     |        0.14
+               4                     |        0.19
 
 On constate qu'avec un programme séquentiel, à chaque étape, l'affichage prend plus de 40% du temps de calcul.
 
@@ -107,6 +108,14 @@ processus calculeurs | Temps de calcul par étape sans affichage | Temps d'affic
         2            |                  0.051                   |             0.10            |  1.82
         3            |                  0.071                   |             0.14            |  1.97
 
-### bilan ?
+### Parallélisation finale (simulation_async_mpi_omp.cpp)
+
+N'ayant pas à disposition plusieurs machines sur lequelles paralléliser la simulation je n'ai pas pu fournir de résultats numériques.
 
 
+## Bilan
+
+Le projet s'inscrit dans la continuité du cours et permet d'approfondir l'utilisation des fonctions asynchrones de MPI avec notament l'optimisation permise par l'affichage asynchrone. Plus généralement le projet permet de découvrir des nouvelles fonctions inutilisées en td comme `MPI_Iprobe` ou `MPI_Comm_split` .
+Enfin, le plus intéressant dans ce projet est de voir que l'on peut utiliser conjointement MPI et OpenMP dans un même programme alors que les tds nous les présentaient comme deux alternatives distinctes de parallélisation.
+
+Pour ce qui est des résultats, mon ordinateur n'a que 2 coeurs pour un total de 4 processeur, ils ne sont donc pas très impressionnant : la meilleure acéleration ne dépasse pas 2.8 .
